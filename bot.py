@@ -1,120 +1,115 @@
-# import requests
-#TOKEN = "7019968682:AAGvOMxDxPLV9Y33TagpSXTexMDws1SNxzU"
-#chat_id = "1011425465"
-#message = "Вы записаны на 19:00"
-#url = f"https://api.telegram.org/bot{TOKEN}/sendMessage?chat_id={chat_id}&text={message}"
-#print(requests.get(url).json()) # Эта строка отсылает сообщение
+from aiogram import Bot, Dispatcher
+from aiogram.filters import CommandStart
+from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message
+from aiogram import F
+from aiogram.types import CallbackQuery
 import pymssql
-from telegram import Bot
-from apscheduler.schedulers.blocking import BlockingScheduler
-from datetime import datetime, timedelta
-import asyncio
-from pyrogram import Client
-from pyrogram.types import InputPhoneContact
-import json
-import tempfile
-import telebot
 import datetime
-botTimeWeb = telebot.TeleBot('7019968682:AAGvOMxDxPLV9Y33TagpSXTexMDws1SNxzU')
 
-from telebot import types
+BOT_TOKEN = '7019968682:AAGvOMxDxPLV9Y33TagpSXTexMDws1SNxzU'
 
-# Конфигурация
-TELEGRAM_TOKEN = '7019968682:AAGvOMxDxPLV9Y33TagpSXTexMDws1SNxzU'
+bot = Bot(token=BOT_TOKEN)
+dp = Dispatcher()
+
 DB_CONFIG = {
-    'server': '79.174.83.32',
-    'port':'2000',
+    'server': 'sql1',
+    'port':'1433',
     'user': 'production',
     'password': 'pP_5647382910',
     'database': 'SKstudio'
-} 
+}
 
+log = False
+query = ""
 password = ""
-bd = ""
 
-@botTimeWeb.message_handler(commands=['start'])
-def startBot(message):
-    first_mess = f"<b>{message.from_user.first_name}</b>, привет!\nДля работы с этим ботом, нужно ввести пароль, который вам выдали в салоне SKstudio"
-    markup = types.InlineKeyboardMarkup()
-    button_yes = types.InlineKeyboardButton(text = 'Продолжить', callback_data='yes')
-    markup.add(button_yes)
-    global password
+@dp.message(CommandStart())
+async def process_start_command(message: Message):
+    global log, password, query
+    log = False
+    query = ""
     password = ""
-    botTimeWeb.send_message(message.chat.id, first_mess, parse_mode='html', reply_markup=markup)
+    button_next = InlineKeyboardButton(text='Продолжить', callback_data='next')
+    keyboard_next = InlineKeyboardMarkup(inline_keyboard=[[button_next]])
+    await message.answer(
+        text = f"{message.from_user.first_name}, привет!\nДля работы с этим ботом, нужно ввести пароль, который вам выдали в салоне SKstudio",
+        reply_markup=keyboard_next
+)
 
-@botTimeWeb.callback_query_handler(func=lambda call:True)
-def response(function_call):
-  if function_call.message:
-    global bd, password
-    if function_call.data == "yes":        
-        mess_password = "Введите пароль:"
-        botTimeWeb.send_message(function_call.message.chat.id, mess_password)
-        botTimeWeb.answer_callback_query(function_call.id)     
-    if function_call.data == "service":
-        bd = fetch_notifications(password)
-        count = 0
-        for mess in bd:
-            if mess['startDateTime'] > datetime.datetime.now():
-                botTimeWeb.send_message(function_call.message.chat.id, "Вы записны в " + str(mess["startDateTime"]) + " на " + mess["name"])
-                count += 1
-            if count == 0:
-                botTimeWeb.send_message(function_call.message.chat.id, "Вы не записаны\nЧтобы записаться позвоните по телефону: 8 905 515-81-41")
-                mess_password_true = "Выбрите ту инфоомацию, что вам необходимо узнать"
-                markup = types.InlineKeyboardMarkup()
-                button_service = types.InlineKeyboardButton(text = 'Мои записи на прием', callback_data='service')
-                markup.add(button_service)        
-                button_pattern = types.InlineKeyboardButton(text = 'Рекомендации перед приемом', callback_data='pattern')
-                markup.add(button_pattern)
-                botTimeWeb.send_message(function_call.message.chat.id, mess_password_true, parse_mode='html', reply_markup=markup)    
-            else:
-                mess_pattern  = "Хотите узнать рекомендации перед приемом?"
-                markup = types.InlineKeyboardMarkup()
-                button_pattern = types.InlineKeyboardButton(text = 'Продолжить', callback_data='pattern')
-                markup.add(button_pattern)
-                botTimeWeb.send_message(function_call.message.chat.id, mess_pattern, parse_mode='html', reply_markup=markup)
-    if function_call.data == "pattern":
-        bd = fetch_notifications(password)
-        count = 0
-        for mess in bd:
-            if mess['startDateTime'] > datetime.datetime.now() and mess['Text'] is not None:
-                botTimeWeb.send_message(function_call.message.chat.id, str(mess["Text"]))
-                count += 1
-            if count == 0:
-                botTimeWeb.send_message(function_call.message.chat.id, "Рекомендаций не найдено")
-                mess_password_true = "Выбрите ту инфоомацию, что вам необходимо узнать"
-                markup = types.InlineKeyboardMarkup()
-                button_service = types.InlineKeyboardButton(text = 'Мои записи на прием', callback_data='service')
-                markup.add(button_service)        
-                button_pattern = types.InlineKeyboardButton(text = 'Рекомендации перед приемом', callback_data='pattern')
-                markup.add(button_pattern)
-                botTimeWeb.send_message(function_call.message.chat.id, mess_password_true, parse_mode='html', reply_markup=markup)    
-            else:
-                mess_pattern  = "Хотите узнать ваши записи на прием?"
-                markup = types.InlineKeyboardMarkup()
-                button_pattern = types.InlineKeyboardButton(text = 'Продолжить', callback_data='service')
-                markup.add(button_pattern)
-                botTimeWeb.send_message(function_call.message.chat.id, mess_pattern, parse_mode='html', reply_markup=markup)
+@dp.callback_query(F.data == 'next')
+async def process_button_next(callback: CallbackQuery):
+    global log, password, query
+    log = True
+    query = ""
+    password = ""
+    await callback.message.edit_text(
+        text = f"{callback.message.from_user.first_name}, привет!\nДля работы с этим ботом, нужно ввести пароль, который вам выдали в салоне SKstudio",
+        reply_markup=None
+    )
+    await callback.message.answer(
+        text='Введите пароль:'
+    )
 
-@botTimeWeb.message_handler(content_types=['text'])
-def after_text(message):
-    if message.text != None:
-        global bd, password
+@dp.message(F.content_type == 'text')
+async def send_echo(message: Message):
+    global log, query
+    if (log):
         password = message.text
-        bd = fetch_notifications(password)
-        if bd != None:
-            mess_password_true = "Верный пароль. Теперь можешь выбрать ту инфоомацию, что тебе необходимо узнать"
-            markup = types.InlineKeyboardMarkup()
-            button_service = types.InlineKeyboardButton(text = 'Мои записи на прием', callback_data='service')
-            markup.add(button_service)        
-            button_pattern = types.InlineKeyboardButton(text = 'Рекомендации перед приемом', callback_data='pattern')
-            markup.add(button_pattern)
-            botTimeWeb.send_message(message.chat.id, mess_password_true, parse_mode='html', reply_markup=markup)
+        query = fetch_notifications(password)
+        if(len(query) > 0):
+            button_appointment = InlineKeyboardButton(text='Мои предстоящие записи', callback_data='appointment')
+            button_pattern = InlineKeyboardButton(text='Рекомендации перед приемом', callback_data='pattern')   
+            keyboard = InlineKeyboardMarkup(inline_keyboard=[[button_appointment], [button_pattern]])
+            log = False
+            await message.answer(
+                text = "Верный пароль. Выберите информацию, что необходимо узнать:",
+                reply_markup=keyboard
+            )
         else:
-            botTimeWeb.send_message(message.chat.id, "Неверный пароль. Попробуйте еще раз")
-            mess_password = "Введите пароль:"
-            botTimeWeb.send_message(message.chat.id, mess_password)
+            await message.answer(
+                text = "Неверный пароль. Попробуйте еще раз:",
+                reply_markup=None
+            )
 
 
+@dp.callback_query(F.data == 'appointment')
+async def process_appointments(callback: CallbackQuery):
+    try:
+        global query, password
+        query = fetch_notifications(password)
+        query_text = 'Вы записны:'
+        count = 0
+        for mess in query:
+            if mess['startDateTime'] > datetime.datetime.now():
+                query_text += '\n' + str(mess["startDateTime"]) + ' на ' + mess["name"]
+                count += 1
+        if count > 0:        
+            await callback.message.edit_text(text=query_text,reply_markup=callback.message.reply_markup)
+        else:
+            await callback.message.edit_text(
+                text='Вы не записаны\nЧтобы записаться позвоните по телефону: 8 905 515-81-41',
+                reply_markup=callback.message.reply_markup)
+    except:
+        None
+
+@dp.callback_query(F.data == 'pattern')
+async def process_appointments(callback: CallbackQuery):
+    try:
+        global query
+        query_text = ''
+        count = 0
+        for mess in query:
+            if mess['startDateTime'] > datetime.datetime.now() and mess['Text'] is not None:
+                query_text += str(mess["name"]) + ':\n' + str(mess["Text"]) + '\n'
+                count += 1
+        if count > 0:        
+            await callback.message.edit_text(text=query_text,reply_markup=callback.message.reply_markup)
+        else:
+            await callback.message.edit_text(
+                text='Рекомендаций не найдено',
+                reply_markup=callback.message.reply_markup)
+    except:
+        None
 
 def fetch_notifications(password):
     conn = pymssql.connect(**DB_CONFIG)
@@ -125,25 +120,24 @@ def fetch_notifications(password):
         a.startDateTime, s.name, p.Text
     FROM 
         Appointments a
-    JOIN 
+    RIGHT JOIN 
         Clients c ON a.clientId = c.id
-    JOIN
+    LEFT JOIN
         Services s on a.serviceId = s.id   
-    JOIN 
+    LEFT JOIN 
         Categories cat ON s.categoryId = cat.id    
-    JOIN 
-        MessagesTemplates p ON p.categoryId = cat.id    
-        WHERE c.password = '{password}'
+    LEFT JOIN 
+        MessagesTemplates p ON p.categoriesId = cat.id    
+    WHERE c.password = {password}
     """
     try:
         cursor.execute(query)
         notifications = cursor.fetchall()
 
         cursor.close()
-        print(notifications)
         return notifications
     except:
-        print(1)
-        return None
-
-botTimeWeb.infinity_polling()
+        return ""
+    
+if __name__ == '__main__':
+    dp.run_polling(bot)
