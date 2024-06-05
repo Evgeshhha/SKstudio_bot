@@ -5,6 +5,8 @@ from aiogram import F
 from aiogram.types import CallbackQuery
 import pymssql
 import datetime
+from datetime import timedelta
+
 
 BOT_TOKEN = '7019968682:AAGvOMxDxPLV9Y33TagpSXTexMDws1SNxzU'
 
@@ -52,7 +54,7 @@ async def process_button_next(callback: CallbackQuery):
 
 @dp.message(F.content_type == 'text')
 async def send_echo(message: Message):
-    global log, query
+    global log, query, password
     if (log):
         password = message.text
         query = fetch_notifications(password)
@@ -74,39 +76,45 @@ async def send_echo(message: Message):
 
 @dp.callback_query(F.data == 'appointment')
 async def process_appointments(callback: CallbackQuery):
-    global query, password
-    query = fetch_notifications(password)
-    query_text = 'Вы записны:'
-    count = 0
-    for mess in query:
-        if mess['startDateTime'] > datetime.datetime.now():
-            query_text += '\n' + str(mess["startDateTime"]) + ' на ' + mess["name"]
-            count += 1
-    if count > 0:        
-        await callback.message.edit_text(text=query_text,reply_markup=callback.message.reply_markup)
-    else:
-        await callback.message.edit_text(
-            text='Вы не записаны\nЧтобы записаться позвоните по телефону: 8 905 515-81-41',
-            reply_markup=callback.message.reply_markup)     
+    try:
+        global query, password
+        query = fetch_notifications(password)
+        query_text = 'Вы записны:'
+        count = 0
+        for mess in query:
+            if mess['startDateTime'] > datetime.datetime.now():
+                query_text += '\n' + str(mess["startDateTime"] + timedelta(hours=3)) + ' на ' + mess["name"]
+                count += 1
+        if count > 0:        
+            await callback.message.edit_text(text=query_text,reply_markup=callback.message.reply_markup)
+        else:
+            await callback.message.edit_text(
+                text='Вы не записаны\nЧтобы записаться позвоните по телефону: 8 905 515-81-41',
+                reply_markup=callback.message.reply_markup)     
+    except:
+        None
 
 
 @dp.callback_query(F.data == 'pattern')
 async def process_appointments(callback: CallbackQuery):
-    global query, password
-    query = fetch_notifications(password)
-    query_text = ''
-    count = 0
-    for mess in query:
-        if mess['startDateTime'] > datetime.datetime.now() and mess['Text'] is not None:
-            query_text += str(mess["name"]) + ':\n' + str(mess["Text"]) + '\n'
-            count += 1
-    if count > 0:        
-        await callback.message.edit_text(text=query_text,reply_markup=callback.message.reply_markup)
-    else:
-        await callback.message.edit_text(
-            text='Рекомендаций не найдено',
-            reply_markup=callback.message.reply_markup)
-    
+    try:
+        global query, password
+        query = fetch_notifications(password)
+        query_text = ''
+        count = 0
+        for mess in query:
+            if mess['startDateTime'] > datetime.datetime.now() and mess['Text'] is not None:
+                query_text += str(mess["name"]) + ':\n' + str(mess["Text"]) + '\n'
+                count += 1
+        if count > 0:        
+            await callback.message.edit_text(text=query_text,reply_markup=callback.message.reply_markup)
+        else:
+            await callback.message.edit_text(
+                text='Рекомендаций не найдено',
+                reply_markup=callback.message.reply_markup)
+    except:
+        None
+
 
 
 def fetch_notifications(password):
