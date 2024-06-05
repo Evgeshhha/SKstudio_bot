@@ -22,7 +22,6 @@ DB_CONFIG = {
 log = False
 query = ""
 password = ""
-query_text_gl = ""
 
 @dp.message(CommandStart())
 async def process_start_command(message: Message):
@@ -75,7 +74,7 @@ async def send_echo(message: Message):
 
 @dp.callback_query(F.data == 'appointment')
 async def process_appointments(callback: CallbackQuery):
-    global query, password, query_text_gl
+    global query, password
     query = fetch_notifications(password)
     query_text = 'Вы записны:'
     count = 0
@@ -83,20 +82,17 @@ async def process_appointments(callback: CallbackQuery):
         if mess['startDateTime'] > datetime.datetime.now():
             query_text += '\n' + str(mess["startDateTime"]) + ' на ' + mess["name"]
             count += 1
-    if  query_text_gl != query_text:    
-        if count > 0:        
-            query_text_gl = query_text
-            await callback.message.edit_text(text=query_text,reply_markup=callback.message.reply_markup)
-        else:
-            query_text_gl = query_text
-            await callback.message.edit_text(
-                text='Вы не записаны\nЧтобы записаться позвоните по телефону: 8 905 515-81-41',
-                reply_markup=callback.message.reply_markup)
+    if count > 0:        
+        await callback.message.edit_text(text=query_text,reply_markup=callback.message.reply_markup)
+    else:
+        await callback.message.edit_text(
+            text='Вы не записаны\nЧтобы записаться позвоните по телефону: 8 905 515-81-41',
+            reply_markup=callback.message.reply_markup)     
 
 
 @dp.callback_query(F.data == 'pattern')
 async def process_appointments(callback: CallbackQuery):
-    global query, password, query_text_gl
+    global query, password
     query = fetch_notifications(password)
     query_text = ''
     count = 0
@@ -104,13 +100,13 @@ async def process_appointments(callback: CallbackQuery):
         if mess['startDateTime'] > datetime.datetime.now() and mess['Text'] is not None:
             query_text += str(mess["name"]) + ':\n' + str(mess["Text"]) + '\n'
             count += 1
-    if  query_text_gl != query_text:    
-        if count > 0:        
-            await callback.message.edit_text(text=query_text,reply_markup=callback.message.reply_markup)
-        else:
-            await callback.message.edit_text(
-                text='Рекомендаций не найдено',
-                reply_markup=callback.message.reply_markup)
+    if count > 0:        
+        await callback.message.edit_text(text=query_text,reply_markup=callback.message.reply_markup)
+    else:
+        await callback.message.edit_text(
+            text='Рекомендаций не найдено',
+            reply_markup=callback.message.reply_markup)
+    
 
 
 def fetch_notifications(password):
@@ -135,7 +131,6 @@ def fetch_notifications(password):
     try:
         cursor.execute(query)
         notifications = cursor.fetchall()
-
         cursor.close()
         return notifications
     except:
