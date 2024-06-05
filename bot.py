@@ -102,10 +102,15 @@ async def process_appointments(callback: CallbackQuery):
         query = fetch_notifications(password)
         query_text = ''
         count = 0
+        pattern_text = ""
         for mess in query:
             if mess['startDateTime'] > datetime.datetime.now() and mess['Text'] is not None:
-                query_text += str(mess["name"]) + ':\n' + str(mess["Text"]) + '\n'
-                count += 1
+                if str(mess["name"]) in pattern_text:
+                    None
+                else:   
+                    query_text += str(mess["name"]) + ':\n' + str(mess["Text"]) + '\n'
+                    count += 1
+                    pattern_text += str(mess["name"])
         if count > 0:        
             await callback.message.edit_text(text=query_text,reply_markup=callback.message.reply_markup)
         else:
